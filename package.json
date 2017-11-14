@@ -1,0 +1,27 @@
+{
+  "name": "es6-spec-runner",
+  "version": "1.0.0",
+  "description": "Spec runner for working with ES6",
+  "main": "index.js",
+  "scripts": {
+    "test": "mocha 'test/**/*.js'"
+  },
+  "keywords": [
+    "testing",
+    "test",
+    "es6",
+    "ES6",
+    "es2015",
+    "ES2015"
+  ],
+  "author": "matthew.burrows@bbc.co.uk",
+  "license": "ISC",
+  "dependencies": {
+    "jsdom": "^11.3.0",
+    "rollup": "^0.51.5"
+  },
+  "devDependencies": {
+    "mocha": "^4.0.1",
+    "sinon": "^4.1.2"
+  }
+}
