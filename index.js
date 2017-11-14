@@ -1,4 +1,4 @@
-const JSDOM = require('jsdom').JSDOM;
+const { JSDOM } = require('jsdom');
 const rollup = require('rollup');
 
 const BUNDLE_OUTPUT_OPTS = { format: 'iife', name: '__modules__' };
