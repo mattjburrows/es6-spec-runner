@@ -18,12 +18,7 @@ function buildBundler(inputOptions, outputOptions) {
 
 function bindPolyfillsToWindow(polyfills) {
   return (window) => {
-    if (!polyfills) return;
-
-    Object.keys(polyfills).reduce((accumulator, polyfill) => {
-      accumulator[polyfill] = polyfills[polyfill];
-      return accumulator;
-    }, window);
+    Object.assign(window, polyfills);
   };
 }
 
