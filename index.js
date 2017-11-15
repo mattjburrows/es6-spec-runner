@@ -5,29 +5,22 @@ const fs = require('fs');
 const BUNDLE_OUTPUT_OPTS = { format: 'iife', name: '__modules__' };
 const DEFAULT_JSDOM_OPTS = { runScripts: 'outside-only' };
 
-function mergeScriptDependencies(scriptDependencies) {
-  return (accumulator, scriptDependency) => {
-    accumulator += fs.readFileSync(scriptDependency, 'utf-8');
-    return accumulator;
-  };
-}
+function createEvalScript(code, scriptDependencies) {
+  if (!scriptDependencies || !scriptDependencies.length) return code;
 
-function createEvalScript(code, scriptDependencies = []) {
-  if (!scriptDependencies.length) return code;
-
-  const dependencies = scriptDependencies.reduce(mergeScriptDependencies(scriptDependencies), '');
+  const dependencies = scriptDependencies.reduce((accumulator, scriptDependency) => {
+    return accumulator += fs.readFileSync(scriptDependency, 'utf-8');
+  }, '');
   return (`${dependencies}\n\n${code}`);
 }
 
-function createWindowPolyfills(polyfills = {}) {
-  return (window) => {
-    Object.assign(window, polyfills);
-  };
+function createWindowPolyfills(polyfills) {
+  return (window) => Object.assign(window, polyfills);
 }
 
 function createBundler(inputOptions, outputOptions) {
   if (inputOptions.bundle) return;
-  
+
   return rollup
     .rollup(inputOptions)
     .then((bundle) => {
@@ -39,7 +32,7 @@ function createBundler(inputOptions, outputOptions) {
     });
 }
 
-function createDom({ fixture, polyfills, scriptDependencies }) {
+function createDom(fixture, polyfills, scriptDependencies) {
   const jsDomOptions = Object.assign(
     {},
     DEFAULT_JSDOM_OPTS,
@@ -50,10 +43,11 @@ function createDom({ fixture, polyfills, scriptDependencies }) {
 }
 
 function createJsDomEnvironment(runnerOptions) {
-  const dom = createDom(runnerOptions);
+  const { fixture, polyfills, scriptDependencies } = runnerOptions;
+  const dom = createDom(fixture, polyfills, scriptDependencies);
 
   return ({ code }) => {
-    dom.window.eval(createEvalScript(code, runnerOptions.scriptDependencies));
+    dom.window.eval(createEvalScript(code, scriptDependencies));
 
     return Promise.resolve(
       Object.assign(
@@ -64,15 +58,15 @@ function createJsDomEnvironment(runnerOptions) {
   };
 }
 
-function bundleRunner(inputOptions = {}, outputOptions = {}) {
-  const bundler = createBundler(inputOptions, outputOptions);
+module.exports = {
+  bundleRunner(inputOptions = {}, outputOptions = {}) {
+    const bundler = createBundler(inputOptions, outputOptions);
 
-  return (runnerOptions = {}) => {
-    const jsDomEnvironment = createJsDomEnvironment(runnerOptions);
+    return (runnerOptions = {}) => {
+      const jsDomEnvironment = createJsDomEnvironment(runnerOptions);
 
-    if (!bundler) return jsDomEnvironment({ code: inputOptions.bundle });
-    return bundler.then(jsDomEnvironment);
-  };
-}
-
-module.exports = { bundleRunner };
+      if (!bundler) return jsDomEnvironment({ code: inputOptions.bundle });
+      return bundler.then(jsDomEnvironment);
+    };
+  }
+};
