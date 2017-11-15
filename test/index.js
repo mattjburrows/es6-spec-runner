@@ -24,7 +24,7 @@ describe('bundleRunner(inputOptions, outputOptions)', () => {
 
   it('loads the bundleRunner({ input }) into the window and returns the function', () => {
     const bundle = bundleRunner({ input: mathematics });
-    
+
     return bundle().then(({ add }) => {
       assert.equal(typeof add, 'function');
       assert.equal(add(2), 4);
@@ -76,10 +76,13 @@ describe('bundleRunner(inputOptions, outputOptions)', () => {
 
     return runner.then(({ foo, bar, dom: { window } }) => {
       const element = window.document.querySelectorAll('#i-am-in-the-dom')[0];
+
       assert.strictEqual(element.classList.contains('foo'), false);
       foo(element, 'foo');
+
       assert.strictEqual(element.classList.contains('foo'), true);
       bar(element, 'foo');
+      
       assert.strictEqual(element.classList.contains('foo'), false);
     });
   });
