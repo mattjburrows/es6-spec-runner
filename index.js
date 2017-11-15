@@ -1,8 +1,8 @@
 const { JSDOM } = require('jsdom');
-const rollup = require('rollup');
 const fs = require('fs');
 
-const BUNDLE_OUTPUT_OPTS = { format: 'iife', name: '__modules__' };
+const createBundler = require('./lib/createBundler');
+
 const DEFAULT_JSDOM_OPTS = { runScripts: 'outside-only' };
 
 function createEvalScript(code, scriptDependencies) {
@@ -18,20 +18,6 @@ function createWindowPolyfills(polyfills) {
   return (window) => Object.assign(window, polyfills);
 }
 
-function createBundler(inputOptions, outputOptions) {
-  if (inputOptions.bundle) return;
-
-  return rollup
-    .rollup(inputOptions)
-    .then((bundle) => {
-      return bundle.generate(Object.assign(
-        {},
-        BUNDLE_OUTPUT_OPTS,
-        outputOptions
-      ));
-    });
-}
-
 function createDom(fixture, polyfills, scriptDependencies) {
   const jsDomOptions = Object.assign(
     {},
@@ -42,8 +28,8 @@ function createDom(fixture, polyfills, scriptDependencies) {
   return new JSDOM(fixture, jsDomOptions);
 }
 
-function createJsDomEnvironment(runnerOptions) {
-  const { fixture, polyfills, scriptDependencies } = runnerOptions;
+function createJsDomEnvironment(runnerOptions, scriptDependencies) {
+  const { fixture, polyfills } = runnerOptions;
   const dom = createDom(fixture, polyfills, scriptDependencies);
 
   return ({ code }) => {
@@ -60,12 +46,13 @@ function createJsDomEnvironment(runnerOptions) {
 
 module.exports = {
   bundleRunner(inputOptions = {}, outputOptions = {}) {
+    const { scriptDependencies, bundle } = inputOptions;
     const bundler = createBundler(inputOptions, outputOptions);
 
     return (runnerOptions = {}) => {
-      const jsDomEnvironment = createJsDomEnvironment(runnerOptions);
+      const jsDomEnvironment = createJsDomEnvironment(runnerOptions, scriptDependencies);
 
-      if (!bundler) return jsDomEnvironment({ code: inputOptions.bundle });
+      if (!bundler) return jsDomEnvironment({ code: bundle });
       return bundler.then(jsDomEnvironment);
     };
   }
