@@ -2,7 +2,7 @@ const assert = require('assert');
 const path = require('path');
 const sinon = require('sinon');
 
-const { bundleRunner } = require('../');
+const bundleRunner = require('../');
 
 const sandbox = sinon.sandbox.create();
 const yayquery = path.resolve(__dirname, '../examples/lib/yayquery.js');
@@ -10,11 +10,14 @@ const usesYayquery = path.resolve(__dirname, '../examples/usesYayquery.js');
 const mathematics = path.resolve(__dirname, '../examples/mathematics.js');
 const windowMethods = path.resolve(__dirname, '../examples/windowMethods.js');
 
-describe('bundleRunner(inputOptions, outputOptions)', () => {
+describe('bundleRunner(options)', () => {
   afterEach(() => sandbox.restore());
 
-  it('loads the bundleRunner({ input }) into the window on a modules property', () => {
-    const bundle = bundleRunner({ input: mathematics });
+  it('loads bundleRunner({ input: { file } }) into the window on a modules property', () => {
+    const options = {
+      input: { file: mathematics }
+    };
+    const bundle = bundleRunner(options);
 
     return bundle().then(({ dom }) => {
       assert.equal(typeof dom.window.__modules__.add, 'function');
@@ -22,8 +25,11 @@ describe('bundleRunner(inputOptions, outputOptions)', () => {
     });
   });
 
-  it('loads the bundleRunner({ input }) into the window and returns the function', () => {
-    const bundle = bundleRunner({ input: mathematics });
+  it('loads bundleRunner({ input: { file } }) into the window and returns the function', () => {
+    const options = {
+      input: { file: mathematics }
+    };
+    const bundle = bundleRunner(options);
 
     return bundle().then(({ add }) => {
       assert.equal(typeof add, 'function');
@@ -31,8 +37,11 @@ describe('bundleRunner(inputOptions, outputOptions)', () => {
     });
   });
 
-  it('adds bundleRunner({ bundle }) into the DOM', () => {
-    const bundle = bundleRunner({ bundle: 'window.foo = "bar";' });
+  it('adds bundleRunner({ input: { custom } }) into the DOM', () => {
+    const options = {
+      input: { custom: 'window.foo = "bar";' }
+    };
+    const bundle = bundleRunner(options);
 
     return bundle({ fixture: '<div id="i-am-in-the-dom" />' }).then(({ dom: { window } }) => {
       assert.equal(window.foo, 'bar');
@@ -40,10 +49,11 @@ describe('bundleRunner(inputOptions, outputOptions)', () => {
   });
 
   it('adds bundleRunner({ scriptDependencies }) into the DOM', () => {
-    const bundle = bundleRunner({
-      input: usesYayquery,
+    const options = {
+      input: { file: usesYayquery },
       scriptDependencies: [yayquery]
-    });
+    };
+    const bundle = bundleRunner(options);
     const runner = bundle({ fixture: '<div id="i-am-in-the-dom" />' });
 
     return runner.then(({ foo, bar, dom: { window } }) => {
@@ -59,8 +69,11 @@ describe('bundleRunner(inputOptions, outputOptions)', () => {
     });
   });
 
-  it('adds the bundleRunner()({ fixture }) markup to the DOM', () => {
-    const bundle = bundleRunner({ input: mathematics });
+  it('adds bundleRunner({})({ fixture }) markup to the DOM', () => {
+    const options = {
+      input: { file: mathematics }
+    };
+    const bundle = bundleRunner(options);
 
     return bundle({ fixture: '<div id="i-am-in-the-dom" />' }).then(({ dom: { window } }) => {
       assert.equal(
@@ -70,9 +83,12 @@ describe('bundleRunner(inputOptions, outputOptions)', () => {
     });
   });
 
-  it('adds bundleRunner()({ polyfills }) to the window', () => {
+  it('adds bundleRunner({})({ polyfills }) to the window', () => {
     const matchMediaStub = sandbox.stub().returns({ matches: false });
-    const bundle = bundleRunner({ input: windowMethods });
+    const options = {
+      input: { file: windowMethods }
+    };
+    const bundle = bundleRunner(options);
     const runner = bundle({
       polyfills: {
         matchMedia: matchMediaStub
