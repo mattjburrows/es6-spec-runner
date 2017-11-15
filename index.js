@@ -1,10 +1,33 @@
 const { JSDOM } = require('jsdom');
 const rollup = require('rollup');
+const fs = require('fs');
 
 const BUNDLE_OUTPUT_OPTS = { format: 'iife', name: '__modules__' };
 const DEFAULT_JSDOM_OPTS = { runScripts: 'outside-only' };
 
-function buildBundler(inputOptions, outputOptions) {
+function mergeScriptDependencies(scriptDependencies) {
+  return (accumulator, scriptDependency) => {
+    accumulator += fs.readFileSync(scriptDependency, 'utf-8');
+    return accumulator;
+  };
+}
+
+function createEvalScript(code, scriptDependencies = []) {
+  if (!scriptDependencies.length) return code;
+
+  const dependencies = scriptDependencies.reduce(mergeScriptDependencies(scriptDependencies), '');
+  return (`${dependencies}\n\n${code}`);
+}
+
+function createWindowPolyfills(polyfills = {}) {
+  return (window) => {
+    Object.assign(window, polyfills);
+  };
+}
+
+function createBundler(inputOptions, outputOptions) {
+  if (inputOptions.bundle) return;
+  
   return rollup
     .rollup(inputOptions)
     .then((bundle) => {
@@ -16,34 +39,39 @@ function buildBundler(inputOptions, outputOptions) {
     });
 }
 
-function bindPolyfillsToWindow(polyfills) {
-  return (window) => {
-    Object.assign(window, polyfills);
+function createDom({ fixture, polyfills, scriptDependencies }) {
+  const jsDomOptions = Object.assign(
+    {},
+    DEFAULT_JSDOM_OPTS,
+    { beforeParse: createWindowPolyfills(polyfills) }
+  );
+
+  return new JSDOM(fixture, jsDomOptions);
+}
+
+function createJsDomEnvironment(runnerOptions) {
+  const dom = createDom(runnerOptions);
+
+  return ({ code }) => {
+    dom.window.eval(createEvalScript(code, runnerOptions.scriptDependencies));
+
+    return Promise.resolve(
+      Object.assign(
+        { dom },
+        dom.window.__modules__
+      )
+    );
   };
 }
 
-function bundleRunner(inputOptions, outputOptions) {
-  const bundler = buildBundler(inputOptions, outputOptions);
+function bundleRunner(inputOptions = {}, outputOptions = {}) {
+  const bundler = createBundler(inputOptions, outputOptions);
 
-  return (fixture, runnerOptions = {}) => {
-    const dom = new JSDOM(
-      fixture,
-      Object.assign(
-        { beforeParse: bindPolyfillsToWindow(runnerOptions.polyfills) },
-        DEFAULT_JSDOM_OPTS
-      )
-    );
+  return (runnerOptions = {}) => {
+    const jsDomEnvironment = createJsDomEnvironment(runnerOptions);
 
-    return bundler.then(({ code }) => {
-      dom.window.eval(code);
-
-      return Promise.resolve(
-        Object.assign(
-          { dom },
-          dom.window.__modules__
-        )
-      );
-    });
+    if (!bundler) return jsDomEnvironment({ code: inputOptions.bundle });
+    return bundler.then(jsDomEnvironment);
   };
 }
 
